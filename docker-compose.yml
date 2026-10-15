@@ -1,36 +1,29 @@
+version: "3.8"
+
 services:
   netbird-client:
     build:
       context: .
-      dockerfile: client/Dockerfile.multistage-rootless
+      dockerfile: client/Dockerfile.multistage
     image: netbird-client-local:latest
     container_name: netbird-isolated
     restart: unless-stopped
-    user: "10001:10001"
-    read_only: true
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:rw,noexec,nosuid,size=64m
-      - /var/lib/netbird:rw,noexec,nosuid,size=128m
+    network_mode: host
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./netbird-data:/var/lib/netbird
+      - ./netbird-data:/etc/netbird
     environment:
       - NB_MANAGEMENT_URL=${NB_MANAGEMENT_URL:-https://api.netbird.io:443}
-      - NB_SETUP_KEY=${NB_SETUP_KEY:-}
+      - NB_SETUP_KEY=${NB_SETUP_KEY}
       - NB_LOG_LEVEL=${NB_LOG_LEVEL:-info}
     healthcheck:
-      test: ["CMD", "/usr/local/bin/netbird", "status", "-C", "live"]
+      test: ["CMD", "netbird", "status", "-C", "live"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 10s
-    networks:
-      - netbird-local-net
-      - proxy_net
-
-networks:
-  netbird-local-net:
-    driver: bridge
-  proxy_net:
-    external: true
